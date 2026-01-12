@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import { RevenueTrendChart } from "@/features/dashboard/components/RevenueTrendChart";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Globe, Wallet, CreditCard, Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
