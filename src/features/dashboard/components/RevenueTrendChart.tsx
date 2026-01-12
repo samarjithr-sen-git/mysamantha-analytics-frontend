@@ -1,58 +1,71 @@
-"use client"
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
+} from 'recharts';
 
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-
-const chartConfig = {
-  inr: { label: "INR (₹)", color: "oklch(0.646 0.222 41.116)" }, // Chart-1
-  usd: { label: "USD ($)", color: "oklch(0.6 0.118 184.704)" },  // Chart-2
-} satisfies ChartConfig
-
-export function RevenueTrendChart({ data }: { data: any }) {
-  // We transform your backend's parallel arrays into a single array of objects for Recharts
+export function RevenueTrendChart({ data, period }: { data: any, period: string }) {
+  // We transform the backend's three separate lists into one list of objects
   const chartData = data.dates.map((date: string, i: number) => ({
-    date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    inr: data.inr_values[i],
-    usd: data.usd_values[i],
+    displayDate: date, // e.g., "10 AM" or "Mon"
+    INR: data.inr_values[i],
+    USD: data.usd_values[i],
   }));
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Revenue Streams</CardTitle>
-        <CardDescription>Comparative growth: INR vs USD</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="h-[350px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ left: 12, right: 12 }}>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.4} />
-              <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
-              <YAxis tickLine={false} axisLine={false} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Area
-                dataKey="inr"
-                type="monotone"
-                fill="var(--color-inr)"
-                fillOpacity={0.1}
-                stroke="var(--color-inr)"
-                strokeWidth={2}
-                stackId="a"
-              />
-              <Area
-                dataKey="usd"
-                type="monotone"
-                fill="var(--color-usd)"
-                fillOpacity={0.1}
-                stroke="var(--color-usd)"
-                strokeWidth={2}
-                stackId="a"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      </CardContent>
-    </Card>
-  )
+    <div className="h-[350px] w-full mt-4">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData}>
+          <defs>
+            <linearGradient id="colorInr" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+            </linearGradient>
+            <linearGradient id="colorUsd" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+          <XAxis 
+            dataKey="displayDate" 
+            axisLine={false}
+            tickLine={false}
+            fontSize={12}
+            tickMargin={10}
+            // Logic to prevent label crowding:
+            // If we have many points (like in Total), skip every few labels
+            interval={period === 'total' ? Math.floor(chartData.length / 6) : 0} 
+          />
+          <YAxis 
+            axisLine={false}
+            tickLine={false}
+            fontSize={12}
+            tickFormatter={(val) => `₹${val >= 1000 ? (val/1000).toFixed(1) + 'k' : val}`}
+          />
+          <Tooltip 
+            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px rgba(0,0,0,0.1)' }}
+            formatter={(value: number) => [value.toLocaleString(), 'Revenue']}
+          />
+          <Legend verticalAlign="top" height={36} align="right" iconType="circle" />
+          <Area 
+            type="monotone" // This makes the line smooth and curvy
+            dataKey="INR" 
+            stroke="#10b981" 
+            fillOpacity={1} 
+            fill="url(#colorInr)" 
+            strokeWidth={3}
+            animationDuration={1500}
+          />
+          <Area 
+            type="monotone" 
+            dataKey="USD" 
+            stroke="#3b82f6" 
+            fillOpacity={1} 
+            fill="url(#colorUsd)" 
+            strokeWidth={3}
+            animationDuration={1500}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
 }

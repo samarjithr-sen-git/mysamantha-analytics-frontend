@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 interface StatCardProps {
   title: string;
-  value: string | number;
+  value: React.ReactNode;
   description?: string;
   icon: React.ReactNode;
   // Optional trend logic if your Django views provide comparison data later

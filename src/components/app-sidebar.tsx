@@ -68,7 +68,7 @@ export function AppSidebar() {
           <SamanthaLogo className="h-9 w-auto shrink-0" />
           <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
             <span className="font-bold text-lg tracking-tight text-foreground">
-              Samantha
+              MySamantha
             </span>
             <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
               Admin Engine

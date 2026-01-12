@@ -24,31 +24,53 @@ export default function Overview() {
         setLoading(true);
         setError(null);
         
-        // Fetch analytics data with proper error handling
+        // Fetch all data in parallel
         const [dauRes, wauRes, revRes, featRes, streakRes] = await Promise.all([
-          api.get("analytics/active-users/daily"),
-          api.get("analytics/active-users/weekly"),
-          api.get("analytics/revenue", { params: { period: "daily" } }),
-          api.get("analytics/popular/feature"),
-          api.get("analytics/streak")
+          api.get("analytics/active-users/daily/"),
+          api.get("analytics/active-users/weekly/"),
+          api.get("analytics/revenue/", { params: { period: "daily" } }),
+          api.get("analytics/popular/feature/"),
+          api.get("analytics/streak/")
         ]);
 
+        // 1. Map Activity Metrics
         const dau = dauRes.data?.daily_active_users || 0;
-        const wau = wauRes.data?.weekly_active_users || 0;
+        const wau = wauRes.data?.weekly_active_users_count || 0; 
         
-        // Safely extract revenue data
-        const revenueData = revRes.data?.data || {};
-        const razorpayGross = revenueData.RAZORPAY?.[0]?.metrics?.gross || 0;
+        // --- REVENUE CALCULATION FIX ---
+        const revenuePayload = revRes.data?.data || {};
+        
+        // Initialize two separate buckets
+        let totalINR = 0;
+        let totalUSD = 0;
+
+        // Iterate through ALL gateways (Stripe, Razorpay, GPay, etc.)
+        Object.values(revenuePayload).forEach((gatewayEntries: any) => {
+          // gatewayEntries is an array of currency objects
+          gatewayEntries.forEach((entry: any) => {
+            const amount = entry.metrics?.gross || 0;
+            const currency = entry.currency?.toUpperCase(); // Ensure "USD" matches "usd"
+
+            if (currency === "INR") {
+              totalINR += amount;
+            } else if (currency === "USD") {
+              totalUSD += amount;
+            }
+            // If you have other currencies (EUR, GBP), you can add 'else if' here
+          });
+        });
 
         setData({
           dau,
           wau,
-          // Stickiness Ratio: Percentage of weekly users active today
           stickiness: wau > 0 ? ((dau / wau) * 100).toFixed(1) : 0,
-          revenue: razorpayGross,
+          // Store both values separately
+          revenueINR: totalINR,
+          revenueUSD: totalUSD,
           ranking: featRes.data?.ranking || [],
           streaks: streakRes.data || { labels: [], counts: [0, 0, 0, 0] },
         });
+
       } catch (err: any) {
         const errorMsg = err.response?.data?.error || err.message || "Unknown error";
         setError(`Failed to sync with Zemuria Analytics: ${errorMsg}`);
@@ -63,30 +85,35 @@ export default function Overview() {
 
   if (loading) {
     return (
-      <div className="flex h-[400px] w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2 text-sm text-muted-foreground">Hydrating Analytics...</span>
+      <div className="flex h-[400px] w-full flex-col items-center justify-center gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <span className="text-sm font-medium text-muted-foreground">Hydrating System Metrics...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <Alert variant="destructive" className="max-w-2xl mx-auto mt-10">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Connection Error</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+      <div className="p-6">
+        <Alert variant="destructive" className="mx-auto max-w-2xl">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Connection Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div>
+      <div className="flex flex-col gap-1">
         <h2 className="text-3xl font-bold tracking-tight">System Overview</h2>
-        <p className="text-muted-foreground">Real-time user engagement and revenue</p>
+        <p className="text-muted-foreground font-medium">
+          Real-time insights for {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+        </p>
       </div>
 
+      {/* Row 1: Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard 
           title="Daily Active (DAU)" 
@@ -104,21 +131,34 @@ export default function Overview() {
           title="Stickiness" 
           value={`${data.stickiness}%`} 
           icon={<Zap className="text-amber-500" />} 
-          description="DAU/WAU Ratio"
+          description="DAU / WAU Ratio"
         />
+        
+        {/* UPDATED REVENUE CARD */}
         <StatCard 
           title="Daily Revenue" 
-          value={`₹${data.revenue.toLocaleString()}`} 
+          // Show both INR and USD separated by a slash
+          value={
+            <div className="flex flex-col gap-0.5 mt-1">
+              <span className="text-xl">
+                ₹{data.revenueINR.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+              <span className="text-xl  font-bold">
+                + ${data.revenueUSD.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          } 
           icon={<DollarSign className="text-emerald-500" />} 
-          description="Razorpay Gross"
+          description="Gross Volume (INR + USD)"
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <div className="lg:col-span-4">
+      {/* Row 2: Charts */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+        <div className="lg:col-span-4 rounded-xl border bg-card p-4 shadow-sm">
           <FeaturePopularityChart data={data.ranking} />
         </div>
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 rounded-xl border bg-card p-4 shadow-sm">
           <StreakDonutChart data={data.streaks} />
         </div>
       </div>
